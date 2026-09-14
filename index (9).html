@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Залізне небо — радар шахедів, карта ракет і дронів онлайн</title>
+<meta name="keywords" content="залізне небо, радар шахедів, карта шахедів, радар ракет, карта ракетних ударів, карта дронів, карта повітряної тривоги україна"/>
+<meta name="description" content="Залізне небо — радар шахедів і ракет, інтерактивна карта повітряних тривог та дронів по Україні онлайн у реальному часі."/>
+<meta name="robots" content="index, follow"/>
+<link rel="canonical" href="https://zaliznenebo.world/"/>
+<meta property="og:type" content="website"/>
+<meta property="og:title" content="Залізне небо — радар шахедів, карта ракет і дронів онлайн"/>
+<meta property="og:description" content="Радар шахедів і ракет, карта повітряних тривог по Україні в реальному часі."/>
+<meta property="og:url" content="https://zaliznenebo.world/"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://neptun.in.ua/sdk/neptun.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<style>
+  html, body { margin:0; padding:0; height:100%; background:#1a1a1a; overflow:hidden; }
+  #map { width:100%; height:100vh; background:#1a1a1a; }
+  .leaflet-tile-pane { filter: grayscale(100%); }
+  .clock-panel {
+    position:absolute; top:0; left:0; right:0;
+    z-index:1000; text-align:center;
+    pointer-events:none;
+    background:
+      radial-gradient(ellipse 60% 100% at 50% 0%, rgba(90,140,70,0.55) 0%, rgba(40,60,35,0.42) 45%, rgba(15,20,12,0.25) 75%, rgba(0,0,0,0) 100%);
+    padding:0 20px 22px;
+  }
+  .clock-label {
+    color:#5fd85f; font-family:'Courier New', Consolas, monospace;
+    font-size:7px; font-weight:700; letter-spacing:5px;
+    margin-bottom:1px; opacity:0.9;
+    text-shadow:
+      0 0 5px rgba(95,216,95,0.6),
+      0 0 12px rgba(95,216,95,0.35);
+  }
+  .clock-time {
+    font-family:'Share Tech Mono', 'Courier New', Consolas, monospace;
+    color:#d7e86a; font-size:26px; font-weight:700; letter-spacing:3px;
+    line-height:1.05;
+    text-shadow:
+      0 0 6px rgba(215,232,106,0.7),
+      0 0 14px rgba(215,232,106,0.45),
+      0 0 24px rgba(215,232,106,0.25);
+  }
+  .clock-date {
+    font-family:'Courier New', Consolas, monospace;
+    color:#5fd85f; font-size:10px; letter-spacing:4px; margin-top:1px;
+    opacity:0.9;
+    text-shadow:
+      0 0 5px rgba(95,216,95,0.6),
+      0 0 12px rgba(95,216,95,0.35);
+  }
+  .clock-frame {
+    display:inline-block;
+    background:linear-gradient(180deg, rgba(15,30,15,0.68) 0%, rgba(8,15,8,0.68) 100%);
+    border:0.5px solid rgba(95,232,95,0.5);
+    clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%, 0 10px);
+    padding:4px 48px 6px;
+  }
+  .clock-title {
+    font-family:Arial, 'Helvetica Neue', sans-serif;
+    color:#5fe85f; font-size:12px; font-weight:800; letter-spacing:4px;
+    margin-top:4px;
+    text-shadow:
+      0 0 6px rgba(95,232,95,0.7),
+      0 0 14px rgba(95,232,95,0.45),
+      0 0 24px rgba(95,232,95,0.25);
+  }
+  .topleft-panel {
+    position:absolute; top:10px; left:10px; z-index:1000;
+    display:flex; gap:6px;
+  }
+  .tr-btn {
+    background:linear-gradient(180deg, rgba(15,30,15,0.85) 0%, rgba(8,15,8,0.85) 100%);
+    border:0.5px solid rgba(95,232,95,0.5);
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    color:#5fe85f;
+    font-family:Arial, 'Helvetica Neue', sans-serif;
+    font-size:11px; font-weight:700; letter-spacing:1px;
+    padding:12px 12px;
+    cursor:pointer;
+    user-select:none;
+    white-space:nowrap;
+    text-shadow:
+      0 0 6px rgba(95,232,95,0.7),
+      0 0 14px rgba(95,232,95,0.45);
+  }
+  .coord-display {
+    position:absolute; bottom:10px; left:50%; transform:translateX(-50%); z-index:1000;
+    background:linear-gradient(180deg, rgba(15,30,15,0.85) 0%, rgba(8,15,8,0.85) 100%);
+    border:0.5px solid rgba(95,232,95,0.5);
+    border-radius:0;
+    color:#5fe85f;
+    font-family:'Share Tech Mono','Courier New', Consolas, monospace;
+    font-size:12px; letter-spacing:1px;
+    padding:6px 12px 6px 20px;
+    pointer-events:none;
+    position:absolute;
+    text-shadow:
+      0 0 6px rgba(95,232,95,0.7),
+      0 0 14px rgba(95,232,95,0.45);
+  }
+  .coord-display::after {
+    content:"";
+    position:absolute;
+    top:0; left:0; bottom:0;
+    width:2px;
+    background:#5fe85f;
+  }
+  .live-panel {
+    position:absolute; top:10px; right:10px; z-index:1000;
+    background:linear-gradient(180deg, rgba(30,8,8,0.85) 0%, rgba(18,4,4,0.85) 100%);
+    border:0.5px solid rgba(255,60,60,0.6);
+    color:#ff4d4d;
+    font-family:'Share Tech Mono','Courier New', Consolas, monospace;
+    font-size:11px; font-weight:700; letter-spacing:1.5px;
+    padding:4px 10px;
+    text-shadow:
+      0 0 8px rgba(255,60,60,0.9),
+      0 0 18px rgba(255,60,60,0.7),
+      0 0 32px rgba(255,60,60,0.5),
+      0 0 48px rgba(255,60,60,0.3);
+  }
+  .news-tab {
+    position:absolute; top:50%; right:4px; z-index:1000;
+    transform:translateY(-50%) rotate(90deg);
+    transform-origin:right center;
+    background:linear-gradient(180deg, rgba(15,30,15,0.85) 0%, rgba(8,15,8,0.85) 100%);
+    border:0.5px solid rgba(95,232,95,0.5);
+    color:#5fe85f;
+    font-family:Arial, 'Helvetica Neue', sans-serif;
+    font-size:9px; font-weight:700; letter-spacing:1.5px;
+    padding:4px 8px;
+    cursor:pointer;
+    user-select:none;
+    white-space:nowrap;
+    text-shadow:
+      0 0 6px rgba(95,232,95,0.7),
+      0 0 14px rgba(95,232,95,0.45);
+  }
+  .top-alert-line {
+    position:absolute; top:12px; right:212px; z-index:1000;
+    background:none; border:none;
+    color:#5fe85f;
+    font-family:'Share Tech Mono','Courier New', Consolas, monospace;
+    font-size:10px; font-weight:700; letter-spacing:1px;
+    white-space:nowrap;
+    pointer-events:none;
+    text-shadow:
+      0 0 6px rgba(95,232,95,0.7),
+      0 0 14px rgba(95,232,95,0.45);
+  }
+  .threat-divicon { background: transparent; border: none; }
+  /* ---- Radar sweep overlay: above tiles/vectors, BELOW markers (600) so
+     targets stay clickable; UI panels (1000) stay on top. ---- */
+  #radarSweep {
+    position:absolute; inset:0; z-index:500;
+    pointer-events:none !important;
+    overflow:hidden;
+  }
+  #radarSweep * { pointer-events:none !important; }
+  .radar-rings {
+    position:absolute; inset:0;
+    background:
+      repeating-radial-gradient(circle at 50% 50%, transparent 0 117px, rgba(200,255,130,0.20) 117px 121px),
+      linear-gradient(rgba(200,255,130,0.13) 0 0) center/1px 100% no-repeat,
+      linear-gradient(rgba(200,255,130,0.13) 0 0) center/100% 1px no-repeat;
+  }
+  .radar-beam {
+    position:absolute; left:50%; top:50%;
+    width:160vmax; height:160vmax;
+    margin-left:-80vmax; margin-top:-80vmax;
+    border-radius:50%;
+    background:conic-gradient(from 0deg at 50% 50%,
+      rgba(215,255,140,0.38) 0deg,
+      rgba(200,255,130,0.16) 12deg,
+      rgba(200,255,130,0.05) 35deg,
+      transparent 80deg);
+    animation:radarSpin 5s linear infinite;
+    will-change:transform;
+  }
+  @keyframes radarSpin { to { transform:rotate(360deg); } }
+  /* SVG icon slightly above the point, halo around it, dark chip below. */
+  .threat-marker {
+    position: relative; width: 0; height: 0;
+    pointer-events: auto;
+  }
+  .threat-marker.stale { opacity: 0.45; }
+  .threat-halo {
+    position: absolute; left: -16px; top: -20.5px;
+    width: 30px; height: 30px; border-radius: 50%;
+    pointer-events: auto;
+  }
+  .threat-ico {
+    position: absolute; left: -6px; top: -13px;
+    width:0; height:0;
+    border-left:6px solid transparent;
+    border-right:6px solid transparent;
+    border-bottom:12px solid #ff2b2b;
+    transform-origin: 50% 67%;
+  }
+  .threat-ico.unknown {
+    left: -4px; top: -9px;
+    width: 8px; height: 8px;
+    border: none;
+    transform: rotate(45deg);
+  }
+  .threat-img {
+    position: absolute;
+    object-fit: contain;
+    pointer-events: auto;
+  }
+  .threat-label {
+    position: absolute; top: 18px; left: 0;
+    transform: translateX(-50%);
+    background: rgba(10,10,10,0.88);
+    border:0.5px solid;
+    border-radius:6px;
+    color:#ff4d4d;
+    font-family:'Share Tech Mono','Courier New', Consolas, monospace;
+    font-size:8px; font-weight:700; letter-spacing:0.3px;
+    padding:1px 5px;
+    white-space:nowrap;
+  }
+
+  /* ---- NEPTUN detail popup (matches neptun.in.ua target card) ---- */
+  .neptun-popup-wrap .leaflet-popup-content-wrapper {
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+  }
+  .neptun-popup-wrap .leaflet-popup-content {
+    margin: 0;
+    width: 168px !important;
+  }
+  .neptun-popup-wrap .leaflet-popup-tip-container { display: none; }
+  .neptun-popup {
+    position: relative;
+    overflow: visible;
+    border-radius: 0;
+    border: 1.5px solid #ff2b2b;
+    background: rgba(8,8,8,0.94);
+    box-shadow:
+      0 0 10px rgba(255,43,43,0.55),
+      0 0 22px rgba(255,43,43,0.3);
+    padding: 8px 10px 9px 10px;
+    font-family: 'Share Tech Mono', 'Courier New', Consolas, monospace;
+    color: #eaeaea;
+  }
+  /* pointer triangle under the card, aimed at the marker */
+  .neptun-popup::after {
+    content: "";
+    position: absolute;
+    bottom: -8px; left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 8px solid #ff2b2b;
+  }
+  .neptun-popup::before {
+    content: "";
+    position: absolute;
+    bottom: -5.5px; left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 5.5px solid transparent;
+    border-right: 5.5px solid transparent;
+    border-top: 6.5px solid rgba(8,8,8,0.94);
+    z-index: 1;
+  }
+  .neptun-popup-close {
+    position: absolute;
+    top: 0; right: 2px;
+    color: rgba(255,255,255,0.75);
+    font-size: 20px;
+    line-height: 1;
+    padding: 6px 9px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .neptun-popup-close:hover { color: #fff; }
+  .neptun-popup-title {
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.3px;
+    color: #ff2b2b;
+    margin: 0 14px 1px 0;
+    text-shadow: 0 0 6px rgba(255,43,43,0.55);
+  }
+  .neptun-popup-place {
+    font-size: 10.5px;
+    color: #f2f2f2;
+    margin-bottom: 4px;
+  }
+  .neptun-popup-row {
+    font-size: 9.5px;
+    color: #d8d8d8;
+    line-height: 1.4;
+  }
+  .neptun-popup-spacer { height: 5px; }
+  .neptun-popup-text {
+    font-size: 9.5px;
+    color: #eaeaea;
+    margin: 1px 0 0;
+    line-height: 1.35;
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div style="position:absolute; bottom:2px; left:4px; z-index:1000; max-width:260px; pointer-events:none; opacity:0.55;">
+  <h1 style="font-family:'Courier New',monospace; font-size:9px; color:#5fd85f; margin:0; font-weight:400; letter-spacing:0.5px;">Залізне небо — радар шахедів, карта ракет і дронів онлайн</h1>
+  <p style="font-family:'Courier New',monospace; font-size:7px; color:#888; margin:2px 0 0;">Живий радар шахедів та ракет, карта повітряних тривог і дронів по Україні в реальному часі.</p>
+</div>
+<div id="radarSweep"><div class="radar-rings"></div><div class="radar-beam"></div></div>
+<div class="live-panel" id="livePanel"><strong>ЦІЛІ:</strong> 25 · LIVE</div>
+<div class="top-alert-line" id="topAlertLine">ТРИВОГИ: РАЙОНИ 0/0 | ОБЛАСТІ 0/0</div>
+<div class="news-tab" id="newsTab">НОВИНИ</div>
+<div class="topleft-panel">
+  <div class="tr-btn" id="centerBtn">⟟ ЦЕНТР: УКРАЇНА</div>
+  <div class="tr-btn" id="modeBtn">MODE</div>
+</div>
+<div class="coord-display" id="coordDisplay">--.----° E / --.----° N</div>
+<div class="clock-panel">
+  <div class="clock-frame">
+    <div class="clock-label">ЧАС УКРАЇНИ</div>
+    <div class="clock-time" id="clockTime">--:--:--</div>
+    <div class="clock-date" id="clockDate">--.--.----</div>
+    <div class="clock-title">ЗАЛІЗНЕ НЕБО</div>
+  </div>
+</div>
+<script>
+// [local-assets] DATA removed: borders now come from assets/*.json (kordon/oblast/rayon/gromada)
+
+
+const VIEW_BOUNDS = L.latLngBounds(
+  [40.7, 21.5],
+  [52.7, 42.5]
+);
+
+const PAN_BOUNDS = L.latLngBounds(
+  [40.7, 12.0],
+  [56.5, 52.0]
+);
+
+const map = L.map("map", {
+  zoomSnap: 0.25,
+  minZoom: 6,
+  maxZoom: 12,
+  maxBounds: PAN_BOUNDS,
+  maxBoundsViscosity: 1.0,
+  zoomControl: false,
+  attributionControl: false
+}).fitBounds(VIEW_BOUNDS);
+
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19,
+  minZoom: 6
+}).addTo(map);
+
+// ============================================================
+// LOCAL ASSETS GEOJSON — kordon / oblast / rayon / gromada
+// Files: assets/kordon.json, assets/oblast.json, assets/rayon.json, assets/gromada.json
+// Kordon = country border + outside dim mask
+// Oblast/Rayon = base borders + live alert fills (NEPTUN stream, normalized keys)
+// Gromada = faint detail borders, loaded lazily on zoom >= 9 (1783 polys, ~5MB)
+// Open via http (python -m http.server) so fetch('assets/...') works.
+// file:// will block fetch — see console warning then.
+// ============================================================
+const worldOuter = [
+  [-85, -180], [-85, 180], [85, 180], [85, -180]
+];
+
+function coordsToLatLngs(geom) {
+  // GeoJSON [lon,lat] -> Leaflet [lat,lon], supports Polygon / MultiPolygon
+  if (!geom) return [];
+  if (geom.type === "Polygon") {
+    return geom.coordinates.map(function(ring) { return ring.map(function(pt) { return [pt[1], pt[0]]; }); });
+  }
+  if (geom.type === "MultiPolygon") {
+    // flatten one level: array of polygons, each = array of rings
+    const out = [];
+    geom.coordinates.forEach(function(poly) {
+      poly.forEach(function(ring) { out.push(ring.map(function(pt) { return [pt[1], pt[0]]; })); });
+    });
+    return out;
+  }
+  return [];
+}
+
+function fetchLocalJson(path) {
+  return fetch(path).then(function(r) {
+    if (!r.ok) throw new Error(path + " HTTP " + r.status);
+    return r.json();
+  });
+}
+
+// Live clock for Europe/Kyiv time
+function updateClock() {
+  const now = new Date();
+  const timeFmt = new Intl.DateTimeFormat("uk-UA", {
+    timeZone: "Europe/Kyiv",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false
+  });
+  const dateFmt = new Intl.DateTimeFormat("uk-UA", {
+    timeZone: "Europe/Kyiv",
+    day: "2-digit", month: "2-digit", year: "numeric"
+  });
+  document.getElementById("clockTime").textContent = timeFmt.format(now).replace(/\s/g, "");
+  document.getElementById("clockDate").textContent = dateFmt.format(now).replace(/\./g, ".");
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// Live coordinate readout under mouse cursor
+const coordEl = document.getElementById("coordDisplay");
+map.on("mousemove", function(e) {
+  const lat = e.latlng.lat.toFixed(4);
+  const lng = e.latlng.lng.toFixed(4);
+  coordEl.textContent = lng + "\u00b0 E / " + lat + "\u00b0 N";
+});
+map.on("mouseout", function() {
+  coordEl.textContent = "--.----\u00b0 E / --.----\u00b0 N";
+});
+
+// "Center: Ukraine" button resets the view
+document.getElementById("centerBtn").addEventListener("click", function() {
+  map.fitBounds(VIEW_BOUNDS);
+});
+
+// "Mode" button placeholder toggle (grayscale on/off)
+let bwMode = true;
+document.getElementById("modeBtn").addEventListener("click", function() {
+  bwMode = !bwMode;
+  document.querySelectorAll(".leaflet-tile-pane").forEach(el => {
+    el.style.filter = bwMode ? "grayscale(100%)" : "none";
+  });
+});
+
+// ============================================================
+// ALERTS: NEPTUN live stream + LOCAL assets borders
+// Borders (detailed, local):
+//   assets/kordon.json  — 1 poly, country border + outside-dim mask
+//   assets/oblast.json  — 27 polys {name, id}, oblast fills + borders
+//   assets/rayon.json   — 138 polys {name, id}, raion fills + borders
+//   assets/gromada.json — 1783 polys, faint detail, lazy on zoom>=9
+// Live data (single source):
+//   NEPTUN RealtimeClient https://neptun.in.ua
+//   snap.alertOblasts[].key — e.g. "луганська", "автономна республіка крим", "севастополь", "м. київ"
+//   snap.alerts[].key       — e.g. "бахмутський", "сумський"
+// Keys are matched via canonOblast()/canonRaion() (lowercase, strip
+// "область"/"район", unify apostrophes/spacing, old->new rayon renames).
+// Why local, not https://neptun.in.ua/*.geojson:
+//   local files are more detailed AND already up-to-date
+//   (берестинський, звягельський, самарівський, шептицький).
+// ============================================================
+let activeOblastAlerts = new Map(); // canonKey -> "red"|"yellow"
+let activeRaionAlerts = new Map();  // canonKey -> "red"|"yellow"
+const oblastLayersByNorm = {}; // canonKey -> [leaflet layers]
+const raionLayersByNorm = {};
+let oblastAlertLayer = null;
+let raionAlertLayer = null;
+let kordonLayer = null;
+let gromadaLayer = null;
+let gromadaLoaded = false;
+
+// 2024-25 renames: old (neptun geojson) -> new (local assets + current law)
+const RAYON_OLD_TO_NEW = {
+  "красноградський": "берестинський",
+  "новоград-волинський": "звягельський",
+  "новомосковський": "самарівський",
+  "червоноградський": "шептицький"
+};
+
+function normBase(s) {
+  let n = (s || "").toLowerCase().trim();
+  // unify apostrophes: ' ’ ʼ ` ‘ ʹ -> '
+  n = n.replace(/[\u2019\u02BC\u0060\u2018\u201B\u2032\u02B9]/g, "'");
+  n = n.replace(/\s+/g, " ").trim();
+  return n;
+}
+
+function canonOblast(s) {
+  let n = normBase(s);
+  n = n.replace(/^м\.\s*/, "м. ");
+  n = n.replace(/\s+/g, " ").trim();
+  const noObl = n.replace(/\s*область\s*$/, "").trim();
+  if (noObl === "ар крим" || noObl === "автономна республіка крим" || noObl === "крим") return "крим";
+  if (noObl === "м. севастополь" || noObl === "севастополь") return "севастополь";
+  if (noObl === "м. київ") return "м. київ";
+  // bare "київ" without prefix = ambiguous, treat as city only if source had м.
+  // "київська" (oblast) passes through untouched below
+  if (noObl === "київ" || noObl === "м київ" || noObl === "місто київ") return "м. київ";
+  return noObl;
+}
+
+function canonRaion(s) {
+  let n = normBase(s);
+  n = n.replace(/\s*район\s*$/, "").trim();
+  n = n.replace(/^м\.\s*/, "м. ");
+  n = n.replace(/\s+/g, " ").trim();
+  if (RAYON_OLD_TO_NEW[n]) n = RAYON_OLD_TO_NEW[n];
+  if (n === "м. севастополь" || n === "севастополь") return "севастополь";
+  if (n === "м. київ" || n === "м.київ") return "м. київ";
+  return n;
+}
+
+function alertFillStyle(level) {
+  if (!level) return null;
+  const color = level === "yellow" ? "#ffb84d" : "#ff2b2b";
+  return {
+    stroke: true,
+    color: color,
+    weight: 0.8,
+    opacity: 0.9,
+    fill: true,
+    fillColor: color,
+    fillOpacity: 0.22,
+    interactive: false
+  };
+}
+
+function oblastBaseStyle() {
+  return { color: "#ff2b2b", weight: 0.3, opacity: 0.85, fill: false, interactive: false };
+}
+function rayonBaseStyle() {
+  return { color: "#ff2b2b", weight: 0.2, opacity: 0.7, fill: false, interactive: false };
+}
+
+function applyOblastAlertStyles() {
+  Object.keys(oblastLayersByNorm).forEach(function(key) {
+    const lvl = activeOblastAlerts.get(key);
+    const st = alertFillStyle(lvl) || oblastBaseStyle();
+    oblastLayersByNorm[key].forEach(function(layer) { layer.setStyle(st); });
+  });
+  updateAlertPanel();
+}
+
+function applyRaionAlertStyles() {
+  Object.keys(raionLayersByNorm).forEach(function(key) {
+    const lvl = activeRaionAlerts.get(key);
+    const st = alertFillStyle(lvl) || rayonBaseStyle();
+    raionLayersByNorm[key].forEach(function(layer) { layer.setStyle(st); });
+  });
+  updateAlertPanel();
+}
+
+function updateAlertPanel() {
+  updateTopAlertLine();
+}
+
+// Top line next to the clock: "ТРИВОГИ: РАЙОНИ active/total | ОБЛАСТІ active/total"
+function updateTopAlertLine() {
+  const el = document.getElementById("topAlertLine");
+  if (!el) return;
+  const nOblast = activeOblastAlerts.size;
+  const nRaion = activeRaionAlerts.size;
+  const totalOblast = Object.keys(oblastLayersByNorm).length;
+  const totalRaion = Object.keys(raionLayersByNorm).length;
+  el.textContent = "ТРИВОГИ: РАЙОНИ " + nRaion + "/" + totalRaion + " | ОБЛАСТІ " + nOblast + "/" + totalOblast;
+}
+
+// simple Ukrainian plural helper (1/2-4/5+ forms)
+function h(n, forms) {
+  const mod10 = n % 10, mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return forms[0];
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return forms[1];
+  return forms[2];
+}
+
+function localFetchFail(name, err) {
+  console.warn("[borders] " + name + " failed to load:", err);
+  console.warn("[borders] Run via http so fetch works:  cd to map folder, then:  python -m http.server 8000  ->  http://localhost:8000/" + encodeURI("ukraine_bw_map_neptun_live__12_.html"));
+  console.warn("[borders] file:// blocks fetch (CORS) — borders/alerts will be empty until served over http.");
+}
+
+// ---- KORDON: country border + outside dim mask ----
+fetchLocalJson("assets/kordon.json").then(function(geojson) {
+  const feats = (geojson && geojson.features) || [];
+  const allRings = [];
+  feats.forEach(function(f) { coordsToLatLngs(f.geometry).forEach(function(r) { allRings.push(r); }); });
+  if (allRings.length) {
+    L.polygon([worldOuter].concat(allRings), {
+      stroke: false, fillColor: "#000000", fillOpacity: 0.4, interactive: false
+    }).addTo(map);
+    // NOTE: Leaflet hole handling: world outer + kordon rings as holes.
+    // If kordon has several rings they all become holes (correct for enclaves).
+  }
+  kordonLayer = L.geoJSON(geojson, {
+    style: function() { return { color: "#ff2b2b", weight: 0.4, opacity: 1, fill: false, interactive: false }; }
+  }).addTo(map);
+  // keep kordon border on top of fills
+  if (kordonLayer.bringToFront) kordonLayer.bringToFront();
+  console.log("[borders] kordon.json loaded, " + feats.length + " feature(s), " + allRings.length + " ring(s)");
+}).catch(function(e) { localFetchFail("assets/kordon.json", e); });
+
+// ---- OBLASTS: base borders + alert fills ----
+fetchLocalJson("assets/oblast.json").then(function(geojson) {
+  oblastAlertLayer = L.geoJSON(geojson, {
+    style: function() { return oblastBaseStyle(); },
+    onEachFeature: function(feature, layer) {
+      const props = (feature && feature.properties) || {};
+      const raw = props.name || props.key || "";
+      const ck = canonOblast(raw);
+      if (!oblastLayersByNorm[ck]) oblastLayersByNorm[ck] = [];
+      oblastLayersByNorm[ck].push(layer);
+      layer._neptunCanon = ck;
+      layer._neptunOrig = raw;
+    }
+  }).addTo(map);
+  console.log("[borders] oblast.json loaded, " + Object.keys(oblastLayersByNorm).length + " oblast groups ready (" + (geojson.features||[]).length + " polys)");
+  applyOblastAlertStyles();
+  // order: oblasts below rayons, kordon always on top
+  try {
+    if (raionAlertLayer && raionAlertLayer.bringToFront) raionAlertLayer.bringToFront();
+    if (kordonLayer && kordonLayer.bringToFront) kordonLayer.bringToFront();
+  } catch (e) {}
+}).catch(function(e) { localFetchFail("assets/oblast.json", e); });
+
+// ---- RAYONS: base borders + alert fills ----
+fetchLocalJson("assets/rayon.json").then(function(geojson) {
+  raionAlertLayer = L.geoJSON(geojson, {
+    style: function() { return rayonBaseStyle(); },
+    onEachFeature: function(feature, layer) {
+      const props = (feature && feature.properties) || {};
+      const raw = props.name || props.key || "";
+      const ck = canonRaion(raw);
+      if (!raionLayersByNorm[ck]) raionLayersByNorm[ck] = [];
+      raionLayersByNorm[ck].push(layer);
+      layer._neptunCanon = ck;
+      layer._neptunOrig = raw;
+    }
+  }).addTo(map);
+  console.log("[borders] rayon.json loaded, " + Object.keys(raionLayersByNorm).length + " raion groups ready (" + (geojson.features||[]).length + " polys)");
+  applyRaionAlertStyles();
+  try {
+    if (raionAlertLayer && raionAlertLayer.bringToFront) raionAlertLayer.bringToFront();
+    if (kordonLayer && kordonLayer.bringToFront) kordonLayer.bringToFront();
+  } catch (e) {}
+}).catch(function(e) { localFetchFail("assets/rayon.json", e); });
+
+// ---- GROMADAS: faint detail, lazy (1783 polys ~5MB) ----
+function ensureGromada() {
+  if (gromadaLoaded) return;
+  gromadaLoaded = true;
+  fetchLocalJson("assets/gromada.json").then(function(geojson) {
+    gromadaLayer = L.geoJSON(geojson, {
+      style: function() { return { color: "#ff2b2b", weight: 0.12, opacity: 0.35, fill: false, interactive: false }; }
+    }).addTo(map);
+    // keep gromadas under alerts, above tiles
+    if (gromadaLayer.bringToBack) gromadaLayer.bringToBack();
+    if (kordonLayer && kordonLayer.bringToFront) kordonLayer.bringToFront();
+    console.log("[borders] gromada.json loaded, " + (geojson.features||[]).length + " polys");
+  }).catch(function(e) { localFetchFail("assets/gromada.json", e); });
+}
+map.on("zoomend", function() {
+  try { if (map.getZoom() >= 9) ensureGromada(); } catch (e) {}
+});
+// also expose manual trigger: NEPTUN_DEBUG.loadGromadas()
+
+// NOTE on kupol.in.ua / alerts.in.ua: kupol.in.ua only publishes a ready-made
+// <iframe> embed (no documented JSON/GeoJSON API), so there's nothing to pull
+// its live data from into this map's own polygon fill — an iframe is an
+// opaque embedded page, not a data feed a parent page can read from (cross-
+// origin, by design). alerts.in.ua's REST API works but doesn't send CORS
+// headers, so it only reaches this page through a proxy. NEPTUN's own stream
+// is the one source here that both (a) has a real data API and (b) is directly
+// reachable from a browser (CORS *), so it's the single method driving the
+// highlighting below. Borders above are now 100% local (assets/*.json).
+
+// Debug helpers: open devtools console and try
+//   NEPTUN_DEBUG.listOblasts()          -> canon oblast keys from assets/oblast.json
+//   NEPTUN_DEBUG.listRaions()           -> canon raion keys from assets/rayon.json
+//   NEPTUN_DEBUG.testOblast("луганська") -> force-highlight (canon name, e.g. "луганська", "крим", "м. київ")
+//   NEPTUN_DEBUG.testRaion("сумський")   -> force-highlight one raion
+//   NEPTUN_DEBUG.loadGromadas()          -> force-load assets/gromada.json now
+//   NEPTUN_DEBUG.clearTest()             -> remove forced test highlights (live stream will refill)
+//   NEPTUN_DEBUG.current()               -> live oblast alerts (canon->level)
+//   NEPTUN_DEBUG.currentRaions()         -> live raion alerts
+window.NEPTUN_DEBUG = {
+  listOblasts: function() { return Object.keys(oblastLayersByNorm).sort(); },
+  listRaions: function() { return Object.keys(raionLayersByNorm).sort(); },
+  listKeys: function() { return Object.keys(oblastLayersByNorm).sort(); },
+  listRaionKeys: function() { return Object.keys(raionLayersByNorm).sort(); },
+  nameMap: function() { return { oblasts: Object.keys(oblastLayersByNorm).sort(), raions: Object.keys(raionLayersByNorm).sort() }; },
+  testAlert: function(key, level) {
+    activeOblastAlerts.set(canonOblast(key), level || "red");
+    applyOblastAlertStyles();
+  },
+  testOblast: function(key, level) {
+    activeOblastAlerts.set(canonOblast(key), level || "red");
+    applyOblastAlertStyles();
+  },
+  testRaionAlert: function(key, level) {
+    activeRaionAlerts.set(canonRaion(key), level || "red");
+    applyRaionAlertStyles();
+  },
+  testRaion: function(key, level) {
+    activeRaionAlerts.set(canonRaion(key), level || "red");
+    applyRaionAlertStyles();
+  },
+  loadGromadas: function() { ensureGromada(); },
+  clearTest: function() {
+    activeOblastAlerts.clear();
+    activeRaionAlerts.clear();
+    applyOblastAlertStyles();
+    applyRaionAlertStyles();
+  },
+  current: function() { return Array.from(activeOblastAlerts.entries()); },
+  currentRaions: function() { return Array.from(activeRaionAlerts.entries()); }
+};
+
+const threatLayer = L.layerGroup().addTo(map);
+const threatMarkers = new Map(); // id -> { marker, threat }
+
+const TYPE_LABELS = {
+  uav: "БПЛА",
+  recon: "РОЗВІД",
+  missile: "РАКЕТА",
+  ballistic: "БАЛІСТИКА",
+  kab: "КАБ",
+  mig31k: "МІГ-31К",
+  unknown: "ЦІЛЬ"
+};
+
+// Title-cased official abbreviation, used inside the detail popup (matches neptun.in.ua)
+const TYPE_TITLES = {
+  uav: "БпЛА",
+  recon: "Розвід. БпЛА",
+  missile: "Ракета",
+  ballistic: "Балістика",
+  kab: "КАБ",
+  mig31k: "МіГ-31К",
+  unknown: "Ціль"
+};
+
+// The 5 core target categories shown on the map chips: БПЛА, РОЗВІД, РАКЕТА, БАЛІСТИКА, FPV.
+// FPV drones come through as type "uav"/"fpv" with "FPV" in the title, so detect that first.
+function isFpv(t) {
+  if (!t) return false;
+  if (t.type === "fpv") return true;
+  return /fpv/i.test(t.title || "") || /fpv/i.test(t.explanationShort || "");
+}
+
+function typeLabel(t) {
+  if (isFpv(t)) return "FPV";
+  return TYPE_LABELS[t.type] || "ЦІЛЬ";
+}
+
+function typeTitle(t) {
+  if (isFpv(t)) return "FPV";
+  return TYPE_TITLES[t.type] || t.title || "Ціль";
+}
+
+// 6 SVG-іконок цілей з assets/ (всі намальовані носом ВЛІВО,
+// тому при повороті за курсом додається +90°):
+//   assets/shahed1.svg — Шахед → БПЛА
+//   assets/rubpla.svg  — літак → РОЗВІД
+//   assets/racet.svg   — крилата → РАКЕТА
+//   assets/balist.svg  — балістика → БАЛІСТИКА
+//   assets/fpv.svg     — квад → FPV (без повороту)
+//   assets/kab.svg     — бомба → КАБ
+// Чорна заливка SVG перефарбовується в колір типу автоматично.
+// Якщо файл не завантажився — малюється CSS-фігура.
+const THREAT_ICON_FILES = {
+  uav: "assets/shahed1.svg",
+  recon: "assets/rubpla.svg",
+  missile: "assets/racet.svg",
+  ballistic: "assets/balist.svg",
+  fpv: "assets/fpv.svg",
+  kab: "assets/kab.svg"
+};
+const THREAT_ICON_SIZE = 26; // px, квадрат; іконка трохи вище точки
+const THREAT_ICON_DY = -5; // px, зсув іконки+кола вгору від точки
+const THREAT_ICON_ROT_OFFSET = 90; // носи дивляться вліво (270°) → +90° до курсу
+const THREAT_ICON_NO_ROTATE = { fpv: true }; // квад не крутимо
+const threatIconURLs = {};   // key -> перефарбований dataURL
+const threatIconFailed = {}; // key -> true, якщо файл не знайдено
+function threatIconKey(t) {
+  if (!t) return null;
+  if (isFpv(t)) return "fpv";
+  return t.type || null;
+}
+function loadThreatIcon(key) {
+  const file = THREAT_ICON_FILES[key];
+  if (!file || threatIconURLs[key] || threatIconFailed[key]) return;
+  fetch(file).then(function(r) {
+    if (!r.ok) throw new Error(file + " HTTP " + r.status);
+    return r.text();
+  }).then(function(txt) {
+    const color = (typeof TYPE_FALLBACK_COLORS !== "undefined" && TYPE_FALLBACK_COLORS[key]) || "#ff2b2b";
+    const recolored = txt.replace(/#000000/gi, color);
+    threatIconURLs[key] = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(recolored);
+    refreshThreatIcons();
+  }).catch(function(e) {
+    threatIconFailed[key] = true;
+    console.warn("[icons] " + file + " not loaded — CSS fallback", e);
+  });
+}
+Object.keys(THREAT_ICON_FILES).forEach(loadThreatIcon);
+function refreshThreatIcons() {
+  if (typeof threatMarkers === "undefined") return;
+  threatMarkers.forEach(function(entry) {
+    const sig = threatIconSignature(entry.threat);
+    if (entry.sig !== sig) {
+      entry.sig = sig;
+      entry.marker.setIcon(makeThreatIcon(entry.threat));
+    }
+  });
+}
+function threatIconURL(t) {
+  const key = threatIconKey(t);
+  if (!key || !THREAT_ICON_FILES[key] || threatIconFailed[key]) return null;
+  return threatIconURLs[key] || null; // null = файл є, але ще вантажиться
+}
+// Chip colors (custom scheme)
+const TYPE_FALLBACK_COLORS = {
+  uav: "#ff2b2b",       // БПЛА — червоний
+  missile: "#ff2b2b",   // ракета — червона
+  kab: "#ffa41b",       // КАБ — оранжево-жовтий
+  fpv: "#ffa41b",       // FPV — оранжево-жовтий
+  ballistic: "#a855f7", // балістика — фіолетова
+  recon: "#ffe14d",     // розвідка — жовта
+  mig31k: "#ff2b2b",
+  unknown: "#9aa3b2"
+};
+function typeColor(t) {
+  if (isFpv(t)) return TYPE_FALLBACK_COLORS.fpv;
+  if (t && t.type && TYPE_FALLBACK_COLORS[t.type]) return TYPE_FALLBACK_COLORS[t.type];
+  return (t && t.advisory) ? "#ffb84d" : "#ff2b2b";
+}
+
+function isThreatStale(t, now) {
+  try {
+    if (window.NEPTUN && NEPTUN.isStale && t && t.updatedAt) {
+      return NEPTUN.isStale(t.updatedAt, now || Date.now());
+    }
+  } catch (e) {}
+  if (!t || !t.updatedAt) return false;
+  return ((now || Date.now()) - new Date(t.updatedAt).getTime()) / 1000 > 420;
+}
+
+function validLatLon(lat, lon) {
+  return Number.isFinite(lat) && Number.isFinite(lon) &&
+    lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+}
+
+function formatRelative(iso) {
+  try {
+    if (window.NEPTUN && NEPTUN.formatRelativeTime && iso) {
+      return NEPTUN.formatRelativeTime(iso);
+    }
+  } catch (e) {}
+  return iso ? new Date(iso).toLocaleTimeString("uk-UA", { hour12: false }) : "—";
+}
+
+function predictPosition(t, now) {
+  try {
+    if (window.NEPTUN && NEPTUN.predict && t && !t.areaOnly) {
+      const p = NEPTUN.predict(t, now || Date.now());
+      if (p && p.lat != null && p.lon != null) return p;
+    }
+  } catch (e) {}
+  return { lat: t.lat, lon: t.lon, heading: t.heading, flying: false, distKm: 0, ageMin: 0 };
+}
+
+// Курс цілі: якщо сервер не дав heading — вважаємо 0° (північ)
+function threatHeading(t) {
+  return (t && Number.isFinite(t.heading)) ? t.heading : 0;
+}
+
+function makeThreatIcon(t) {
+  const color = typeColor(t);
+  let label = typeLabel(t);
+  if (t.count && t.count > 1) label += " ×" + t.count;
+  const hd = threatHeading(t);
+  const stale = isThreatStale(t) ? " stale" : "";
+  const glow = "filter:drop-shadow(0 0 3px rgba(0,0,0,0.9)) drop-shadow(0 0 6px " + color + ");";
+  const half = THREAT_ICON_SIZE / 2;
+  const key = threatIconKey(t);
+  const url = threatIconURL(t);
+  let icoHtml;
+  if (url) {
+    // SVG-іконка з assets: носи дивляться вліво,
+    // тому крутимо (курс + 90°). Квад (fpv) не крутимо.
+    let rot = "";
+    if (!t.areaOnly && !THREAT_ICON_NO_ROTATE[key]) rot = "transform:rotate(" + (hd + THREAT_ICON_ROT_OFFSET) + "deg);";
+    icoHtml = '<img class="threat-img" src="' + url + '" alt="" draggable="false" style="left:-' + half + 'px;top:-' + (half - THREAT_ICON_DY) + 'px;width:' + THREAT_ICON_SIZE + 'px;height:' + THREAT_ICON_SIZE + 'px;' + rot + glow + '"/>';
+  } else {
+    // fallback: CSS-фігура (файл ще вантажиться або його нема)
+    icoHtml = '<div class="threat-ico" style="transform:rotate(' + hd + 'deg); border-bottom-color:' + color + ';' + glow + '"></div>';
+  }
+  const haloHtml = '<div class="threat-halo" style="background:' + color + '59;border:1px solid ' + color + ';"></div>';
+  const html =
+    '<div class="threat-marker' + stale + '">' + haloHtml + icoHtml +
+    '<div class="threat-label" style="color:' + color + '; border-color:' + color + ';">' + label + '</div>' +
+    '</div>';
+  return L.divIcon({ className: "threat-divicon", html: html, iconSize: [1, 1], iconAnchor: [0, 0] });
+}
+
+function threatIconSignature(t) {
+  const key = threatIconKey(t);
+  const url = threatIconURL(t);
+  return [
+    t.type, isFpv(t) ? "fpv" : "",
+    Math.round(threatHeading(t)),
+    t.count || 1, typeColor(t), typeLabel(t),
+    url ? "img" : (key && THREAT_ICON_FILES[key] ? "wait" : "css"),
+    isThreatStale(t) ? "st" : "fr", t.areaOnly ? "ar" : ""
+  ].join("|");
+}
+
+function buildPopupHtml(t) {
+  const place = t.locality || "—";
+  const course = Math.round(threatHeading(t)) + "°";
+  const sources = (t.sourceCount != null ? t.sourceCount : "—");
+  const updated = formatRelative(t.updatedAt);
+  const text = t.explanationShort || (typeTitle(t) + " курсом на " + place + ".");
+  let html = '<div class="neptun-popup">';
+  html += '<div class="neptun-popup-close">×</div>';
+  html += '<div class="neptun-popup-title">' + typeTitle(t) + '</div>';
+  html += '<div class="neptun-popup-place">' + place + '</div>';
+  html += '<div class="neptun-popup-row">Курс: ' + course + '</div>';
+  html += '<div class="neptun-popup-row">Джерел: ' + sources + '</div>';
+  html += '<div class="neptun-popup-row">Оновлено: ' + updated + '</div>';
+  html += '<div class="neptun-popup-spacer"></div>';
+  html += '<div class="neptun-popup-text">' + text + '</div>';
+  html += '</div>';
+  return html;
+}
+
+function updateLivePanel() {
+  const panel = document.getElementById("livePanel");
+  if (panel) panel.innerHTML = "<strong>ЦІЛІ:</strong> " + threatMarkers.size + " · LIVE";
+}
+
+function upsertThreat(t) {
+  if (!t || !validLatLon(t.lat, t.lon)) return;
+  const now = Date.now();
+  const predicted = predictPosition(t, now);
+  const tgtLat = validLatLon(predicted.lat, predicted.lon) ? predicted.lat : t.lat;
+  const tgtLon = validLatLon(predicted.lat, predicted.lon) ? predicted.lon : t.lon;
+  const sig = threatIconSignature(t);
+  let entry = threatMarkers.get(t.id);
+  if (entry) {
+    entry.threat = t;
+    entry.tgtLat = tgtLat;
+    entry.tgtLon = tgtLon;
+    entry.lastSnap = now;
+    // Icon only on real data change — no flicker every frame
+    if (entry.sig !== sig) {
+      entry.sig = sig;
+      entry.marker.setIcon(makeThreatIcon(t));
+    }
+    if (entry.marker.getPopup()) entry.marker.getPopup().setContent(buildPopupHtml(t));
+  } else {
+    const marker = L.marker([tgtLat, tgtLon], { icon: makeThreatIcon(t) }).addTo(threatLayer);
+    marker.bindPopup(buildPopupHtml(t), { className: "neptun-popup-wrap", closeButton: false, offset: [0, -18] });
+    entry = {
+      marker: marker, threat: t,
+      dispLat: tgtLat, dispLon: tgtLon,
+      tgtLat: tgtLat, tgtLon: tgtLon,
+      lastSnap: now, sig: sig
+    };
+    threatMarkers.set(t.id, entry);
+  }
+  updateLivePanel();
+}
+
+function removeThreat(id) {
+  const entry = threatMarkers.get(id);
+  if (entry) {
+    threatLayer.removeLayer(entry.marker);
+    threatMarkers.delete(id);
+    updateLivePanel();
+  }
+}
+
+// Movement like neptun.in.ua: server sends fresh lat/lon every few seconds
+// (no velocity in API now), client glides the dot toward the latest target
+// instead of teleporting. When velocity IS present, NEPTUN.predict() dead-reckons
+// along the course and we glide toward that predicted point.
+let lastAnimTs = null;
+function animateThreats(ts) {
+  if (lastAnimTs == null) lastAnimTs = ts;
+  const dt = Math.min(100, Math.max(16, ts - lastAnimTs));
+  lastAnimTs = ts;
+  // time constant ~1.1s: dot covers ~63% of remaining gap per 1.1s — smooth, no overshoot
+  const k = 1 - Math.exp(-dt / 1100);
+  const now = Date.now();
+  threatMarkers.forEach(function(entry) {
+    const t = entry.threat;
+    if (t.areaOnly) return;
+    let destLat = entry.tgtLat, destLon = entry.tgtLon;
+    try {
+      if (window.NEPTUN && NEPTUN.predict) {
+        const p = NEPTUN.predict(t, now);
+        if (p && validLatLon(p.lat, p.lon)) { destLat = p.lat; destLon = p.lon; }
+      }
+    } catch (e) {}
+    const dLat = destLat - entry.dispLat;
+    const dLon = destLon - entry.dispLon;
+    // snap when gap is tiny (< ~5m) to avoid endless micro-drift
+    if (Math.abs(dLat) < 0.00005 && Math.abs(dLon) < 0.00005) {
+      if (entry.dispLat !== destLat || entry.dispLon !== destLon) {
+        entry.dispLat = destLat; entry.dispLon = destLon;
+        entry.marker.setLatLng([destLat, destLon]);
+      }
+      return;
+    }
+    entry.dispLat += dLat * k;
+    entry.dispLon += dLon * k;
+    entry.marker.setLatLng([entry.dispLat, entry.dispLon]);
+  });
+  requestAnimationFrame(animateThreats);
+}
+requestAnimationFrame(animateThreats);
+
+// Stale dimming without waiting for next snapshot (fresh -> stale at 420s)
+setInterval(function() {
+  threatMarkers.forEach(function(entry) {
+    const sig = threatIconSignature(entry.threat);
+    if (entry.sig !== sig) {
+      entry.sig = sig;
+      entry.marker.setIcon(makeThreatIcon(entry.threat));
+    }
+  });
+}, 10000);
+
+// Custom close ("×") button inside the NEPTUN-style popup.
+// Delegated on #map: survives popup setContent() re-renders on every data
+// update (direct onclick dies with the replaced node — that's why it stopped working).
+document.getElementById("map").addEventListener("click", function(e) {
+  const t = e.target;
+  const btn = (t && t.closest) ? t.closest(".neptun-popup-close") : null;
+  if (btn) {
+    e.stopPropagation();
+    map.closePopup();
+  }
+});
+
+// Connect to the NEPTUN realtime stream (WebSocket, REST fallback, auto-reconnect)
+// + aggressive REST poller below it, so data refreshes every few seconds
+// even when the socket is quiet.
+function applyNeptunSnapshot(snap, src) {
+  const seen = new Set();
+  (snap.threats || []).forEach(function(t) {
+    seen.add(t.id);
+    upsertThreat(t);
+  });
+  threatMarkers.forEach(function(entry, id) {
+    if (!seen.has(id)) removeThreat(id);
+  });
+  // Official air-raid alerts, from the same live stream:
+  // snap.alertOblasts — whole-oblast alerts (incl. occupied oblasts)
+  // snap.alerts       — raion/district-level alerts
+  // Normalize NEPTUN keys to local-assets canon (handles "АР Крим" vs full name,
+  // "м.Київ" spacing, apostrophes, and 4 renamed raions).
+  // Unmatched keys are logged — check NEPTUN_DEBUG.listOblasts()/listRaions().
+  try {
+    const normO = new Map();
+    (snap.alertOblasts || []).forEach(function(o) {
+      const ck = canonOblast(o.key || o.name || "");
+      if (!ck) return;
+      if (!oblastLayersByNorm[ck]) console.warn("[NEPTUN] oblast alert with no local polygon:", o.key, "->", ck);
+      normO.set(ck, o.level || "red");
+    });
+    activeOblastAlerts = normO;
+  } catch (e) { console.warn("[NEPTUN] oblast normalize failed", e); }
+  try {
+    const normR = new Map();
+    (snap.alerts || []).forEach(function(r) {
+      const ck = canonRaion(r.key || r.name || "");
+      if (!ck) return;
+      if (!raionLayersByNorm[ck]) console.warn("[NEPTUN] raion alert with no local polygon:", r.key, "->", ck);
+      normR.set(ck, r.level || "red");
+    });
+    activeRaionAlerts = normR;
+  } catch (e) { console.warn("[NEPTUN] raion normalize failed", e); }
+  if (src === "ws") console.log("[NEPTUN] alertOblasts:", snap.alertOblasts, "alerts (raions):", snap.alerts);
+  applyOblastAlertStyles();
+  applyRaionAlertStyles();
+}
+
+let neptunClient = null;
+if (window.NEPTUN && NEPTUN.RealtimeClient) {
+  neptunClient = new NEPTUN.RealtimeClient("https://neptun.in.ua");
+  neptunClient.subscribe(function(snap) { applyNeptunSnapshot(snap, "ws"); });
+  neptunClient.start();
+} else {
+  console.warn("NEPTUN SDK failed to load — live threat markers unavailable.");
+}
+
+// ---- Fast REST poller: pulls /api/v1/threats + /api/v1/alerts every few
+// seconds straight from NEPTUN (CORS open), merged into the same pipeline
+// as the socket. Server pushes stay instant; this only shortens the gap
+// when the socket is quiet or reconnecting.
+let NEPTUN_POLL_MS = 4000;
+let neptunPollBusy = false;
+let neptunPollTimer = null;
+function neptunPollOnce() {
+  if (neptunPollBusy) return;
+  neptunPollBusy = true;
+  const threatsP = fetch("https://neptun.in.ua/api/v1/threats").then(function(r) {
+    if (!r.ok) throw new Error("threats HTTP " + r.status);
+    return r.json();
+  });
+  const alertsP = fetch("https://neptun.in.ua/api/v1/alerts").then(function(r) {
+    if (!r.ok) throw new Error("alerts HTTP " + r.status);
+    return r.json();
+  });
+  Promise.all([threatsP, alertsP]).then(function(res) {
+    const tj = res[0] || {}, aj = res[1] || {};
+    applyNeptunSnapshot({
+      threats: tj.threats || [],
+      alertOblasts: aj.oblasts || [],
+      alerts: aj.raions || []
+    }, "poll");
+  }).catch(function(e) {
+    console.warn("[NEPTUN] fast poll failed (socket still live):", e);
+  }).then(function() { neptunPollBusy = false; });
+}
+function neptunPollRestart() {
+  if (neptunPollTimer) clearInterval(neptunPollTimer);
+  neptunPollTimer = setInterval(neptunPollOnce, NEPTUN_POLL_MS);
+}
+neptunPollOnce();
+neptunPollRestart();
+if (window.NEPTUN_DEBUG) {
+  window.NEPTUN_DEBUG.pollNow = function() { neptunPollOnce(); };
+  window.NEPTUN_DEBUG.setPollMs = function(ms) {
+    NEPTUN_POLL_MS = Math.max(1500, +ms || 4000);
+    neptunPollRestart();
+    return NEPTUN_POLL_MS;
+  };
+  window.NEPTUN_DEBUG.icons = function() {
+    return { files: Object.assign({}, THREAT_ICON_FILES), ready: Object.keys(threatIconURLs), failed: Object.keys(threatIconFailed), size: THREAT_ICON_SIZE };
+  };
+}
+</script>
+</body>
+</html>
